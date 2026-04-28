@@ -5,7 +5,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)  # 允许所有域名跨域访问
 
-# 数据源列表
+# 数据源列表（按优先级）
 SOURCES = [
     {
         "url": "https://www.77cxw.com/api/ssq?num=100",
@@ -34,6 +34,7 @@ SOURCES = [
 ]
 
 def fetch_lottery():
+    """依次尝试从各数据源获取双色球数据"""
     for src in SOURCES:
         try:
             resp = requests.get(src["url"], timeout=10)
@@ -41,10 +42,12 @@ def fetch_lottery():
                 data = resp.json()
                 parsed = src["parser"](data)
                 if parsed and len(parsed) > 0:
+                    print(f"成功从 {src['url']} 获取数据，共 {len(parsed)} 期")
                     return parsed
-        except Exception:
+        except Exception as e:
+            print(f"源 {src['url']} 失败: {e}")
             continue
-    return []  # 兜底
+    return []  # 所有源都失败返回空列表
 
 @app.route('/api/ssq')
 def get_ssq():
@@ -52,12 +55,11 @@ def get_ssq():
     if data:
         return jsonify({"code": 200, "data": data})
     else:
-        return jsonify({"code": 500, "msg": "无法获取数据"}), 500
+        return jsonify({"code": 500, "msg": "无法获取双色球数据"}), 500
 
-# 健康检查
 @app.route('/')
 def index():
-    return "双色球后端服务运行中"
+    return "双色球后端服务运行中（Render部署）"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
